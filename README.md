@@ -20,7 +20,7 @@ make install
 
 This will build the docker container, and automatically spin it up. 
 
-The applciation will be accessible at `http://localhost:3000`
+The application will be accessible at `http://localhost:3000`
 
 ## Getting Started
 
@@ -37,7 +37,7 @@ POST http://localhost:3000/api/mobile/run-audit
 Content-Type: application/json
 
 {
-  "site": "https://phobosmedia.com"
+  "siteUrl": "https://phobosmedia.com"
 }
 ```
 
