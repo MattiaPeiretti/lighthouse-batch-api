@@ -1,4 +1,4 @@
-## Lighthouse Batch Reporter Api
+## Lighthouse Report Api
 
 Docker containerised Lighthouse API that allows the creation of lighthouse reports.
 This is a very simple Express API that relies on the [Lighthouse CLI](https://github.com/GoogleChrome/lighthouse) utility by Google.
