@@ -6,8 +6,8 @@ In simple words, a headless chromium instance is spun up inside the container, a
 
 See:
 
-- Installation
-- Getting Started
+- [Installation](#installation)
+- [Getting Started](#getting-started)
 
 > Partially based on: Mike Stead's [Lighthouse Batch Reporter](https://github.com/mikestead/lighthouse-batch)
 
