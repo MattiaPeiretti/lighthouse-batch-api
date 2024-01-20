@@ -12,134 +12,68 @@ const HTML_EXT = ".report.html";
 execute.OUT = OUT;
 module.exports = execute;
 
-function execute(options) {
+function generateWebsiteReport(lhScript, isDesktop) {
+
+  let preset = ""
+
+  if (isDesktop) {
+    preset = "--preset desktop"
+  }
+
+  function generateWebsiteReportInternal(site, count) {
+
+    const prefix = `${count + 1}/${count}: `;
+
+    const cmd = `"${site.url}" ${preset} --output json --output-path stdout --chrome-flags="--no-sandbox --headless --disable-gpu"`;
+
+    log(`${prefix}Lighthouse analyzing '${site.url}'`);
+    log(cmd);
+
+    const outcome = exec(`${lhScript} ${cmd}`);
+    const summary = updateSummary(site, outcome);
+
+    if (summary.error)
+      console.warn(`${prefix}Lighthouse analysis FAILED for ${summary.url}`);
+    else
+      log(
+          `${prefix}Lighthouse analysis of '${summary.url}' complete with score ${summary.score}`
+      );
+
+    return summary;
+  }
+
+  return generateWebsiteReportInternal
+
+}
+function execute(options, isDesktop) {
   log = log.bind(log, options.verbose || false);
 
-  const out = options.out || OUT;
   const lhScript = lighthouseScript(options, log);
-  const summaryPath = path.join(out, REPORT_SUMMARY);
-
-  try {
-    const files = fs.readdirSync(out);
-    files.forEach((f) => {
-      if (
-        f.endsWith(JSON_EXT) ||
-        f.endsWith(HTML_EXT) ||
-        f.endsWith(CSV_EXT) ||
-        f == REPORT_SUMMARY
-      ) {
-        const oldFile = path.join(out, f);
-        log(`Removing old report file: ${oldFile}`);
-        rm("-f", oldFile);
-      }
-    });
-  } catch (e) {}
-
-  mkdir("-p", out);
-
-  let budgetErrors = [];
-  const count = options.sites.length;
-  log(`Lighthouse batch run begin for ${count} site${count > 1 ? "s" : ""}`);
 
   const reports = sitesInfo(options)
-    .map((site, i) => {
-      if (budgetErrors.length && options.failFast) {
-        return undefined;
-      }
-      const prefix = `${i + 1}/${count}: `;
-      const htmlOut = options.html ? " --output html" : "";
-      const csvOut = options.csv ? " --output csv" : "";
-      const filePath = path.join(out, site.file);
-      const customParams = options.params || "";
-      const chromeFlags =
-        customParams.indexOf("--chrome-flags=") === -1
-          ? `--chrome-flags="--no-sandbox --headless --disable-gpu"`
-          : "";
-      // if gen'ing (html|csv)+json reports, ext '.report.json' is added by lighthouse cli automatically,
-      // so here we try and keep the file names consistent by stripping to avoid duplication
-      const outputPath =
-        options.html || options.csv
-          ? filePath.slice(0, -JSON_EXT.length)
-          : filePath;
-      const cmd = `"${site.url}" --output json${
-        htmlOut + csvOut
-      } --output-path "${outputPath}" ${chromeFlags} ${customParams}`;
-
-      log(`${prefix}Lighthouse analyzing '${site.url}'`);
-      log(cmd);
-      const outcome = exec(`${lhScript} ${cmd}`);
-      const summary = updateSummary(filePath, site, outcome, options);
-
-      if (summary.error)
-        console.warn(`${prefix}Lighthouse analysis FAILED for ${summary.url}`);
-      else
-        log(
-          `${prefix}Lighthouse analysis of '${summary.url}' complete with score ${summary.score}`
-        );
-
-      if (options.report === false) {
-        log(`Removing generated report file '${filePath}'`);
-        rm(filePath);
-      }
-
-      const errors = checkBudgets(summary, options);
-      if (errors) {
-        const other = summary.errors;
-        summary.errors = {
-          budget: errors,
-        };
-        if (other) {
-          summary.errors.other = other;
-        }
-        budgetErrors = budgetErrors.concat(errors);
-      }
-
-      return summary;
-    })
+    .map(generateWebsiteReport(lhScript, isDesktop))
     .filter((summary) => !!summary);
 
   console.log(`Lighthouse batch run end`);
-  console.log(`Writing reports summary to ${summaryPath}`);
 
-  fs.writeFileSync(summaryPath, JSON.stringify(reports), "utf8");
-  if (options.print) {
-    console.log(`Printing reports summary`);
-    console.log(JSON.stringify(reports, null, 2));
-  }
-
-  if (budgetErrors.length) {
-    console.error(`Error: failed to meet budget thresholds`);
-    for (let err of budgetErrors) {
-      console.error(` - ${err}`);
-    }
-    log("Exiting with code 1");
-    process.exit(1);
-  }
+  return reports;
 }
 
 function sitesInfo(options) {
-  let sites = [];
-  if (options.file) {
-    try {
-      const contents = fs.readFileSync(options.file, "utf8");
-      sites = contents.trim().split("\n");
-    } catch (e) {
-      console.error(`Failed to read file ${options.file}, aborting.\n`, e);
-      log("Exiting with code 1");
-      process.exit(1);
-    }
-  }
-  if (options.sites) {
-    sites = sites.concat(options.sites);
-  }
+  let sites = options.sites;
+
   const existingNames = {};
+
   return sites.map((url) => {
     url = url.trim();
+
     if (!url.match(/^https?:/)) {
       if (!url.startsWith("//")) url = `//${url}`;
       url = `https:${url}`;
     }
+
     const origName = siteName(url);
+
     let name = origName;
 
     // if the same page is being tested multiple times then
@@ -154,7 +88,6 @@ function sitesInfo(options) {
     const info = {
       url,
       name,
-      file: `${name}${JSON_EXT}`,
     };
     if (options.html) info.html = `${name}${HTML_EXT}`;
     if (options.csv) info.csv = `${name}${CSV_EXT}`;
@@ -174,11 +107,11 @@ function lighthouseScript(options, log) {
     }
   }
   let cliPath = path.resolve(
-    `${__dirname}/node_modules/lighthouse/lighthouse-cli/index.js`
+    `${__dirname}/node_modules/lighthouse/cli/index.js`
   );
   if (!fs.existsSync(cliPath)) {
     cliPath = path.resolve(
-      `${__dirname}/../lighthouse/lighthouse-cli/index.js`
+      `${__dirname}/../lighthouse/cli/index.js`
     );
     if (!fs.existsSync(cliPath)) {
       console.error(`Failed to find Lighthouse CLI, aborting.`);
@@ -208,13 +141,13 @@ function siteName(site) {
   return name;
 }
 
-function updateSummary(filePath, summary, outcome, options) {
+function updateSummary(summary, outcome) {
   if (outcome.code !== 0) {
     summary.score = 0;
     summary.error = outcome.stderr;
     return summary;
   }
-  const report = JSON.parse(fs.readFileSync(filePath));
+  const report = JSON.parse(outcome.stdout);
   return {
     ...summary,
     ...getAverageScore(report),

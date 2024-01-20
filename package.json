@@ -1,5 +1,5 @@
 {
-  "name": "lighthouse-batch",
+  "name": "lighthouse-batch-api",
   "version": "8.1.1",
   "description": "Generate lighthouse reports for one or more websites",
   "main": "index.js",
@@ -9,16 +9,16 @@
   "engines": {
     "node": ">=12.13"
   },
-  "author": "Mike Stead",
+  "author": "Mattia Peiretti",
   "license": "MIT",
-  "homepage": "https://github.com/mikestead/lighthouse-batch",
+  "homepage": "https://github.com/mattiapeiretti/lighthouse-batch-api",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mikestead/lighthouse-batch.git"
+    "url": "https://github.com/mattiapeiretti/lighthouse-batch-api"
   },
   "dependencies": {
-    "commander": "^2.9.0",
-    "lighthouse": "^8.3.0",
+    "express": "^4.18.2",
+    "lighthouse": "^11.4.0",
     "shelljs": "^0.8.4"
   }
 }
